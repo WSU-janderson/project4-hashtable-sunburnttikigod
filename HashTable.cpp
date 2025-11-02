@@ -9,11 +9,11 @@
 using namespace std;
 
 HashTable::HashTable(size_t initCapacity)
-    : capacity(initCapacity), size(0), table(initCapacity) {
-    offsets = generateOffsets(capacity);
+    : size(0), table(initCapacity) { // Remove capacity from initialization
+    offsets = generateOffsets(initCapacity); // Use initCapacity directly
 }
 
-std::vector<size_t> HashTable::generateOffsets(size_t cap) {
+std::vector<size_t> HashTable::generateOffsets(size_t cap) { // Rename makeOffsets to generateOffsets
     std::vector<size_t> result;
     for (size_t i = 1; i < cap; ++i) {
         result.push_back(i);
@@ -25,11 +25,11 @@ std::vector<size_t> HashTable::generateOffsets(size_t cap) {
 }
 
 size_t HashTable::hash(const std::string& key) const {
-    return std::hash<std::string>{}(key) % capacity;
+    return std::hash<std::string>{}(key) % capacity();
 }
 
 size_t HashTable::probeIndex(size_t home, size_t attempt) const {
-    return (home + offsets[attempt]) % capacity;
+    return (home + offsets[attempt]) % capacity();
 }
 
 bool HashTable::insert(const std::string& key, const size_t& value) {
@@ -58,7 +58,7 @@ bool HashTable::insert(const std::string& key, const size_t& value) {
 }
 
 void HashTable::resize() {
-    size_t newCapacity = capacity * 2;
+    size_t newCapacity = capacity() * 2;
     std::vector<HashTableBucket> newTable(newCapacity);
     std::vector<size_t> newOffsets = generateOffsets(newCapacity);
 
@@ -151,12 +151,13 @@ std::vector<std::string> HashTable::keys() const {
 }
 
 double HashTable::alpha() const {
-    return static_cast<double>(size) / static_cast<double>(capacity);
+    return static_cast<double>(HashTable::size()) / static_cast<double>(capacity());
 }
 
 size_t HashTable::capacity() const {
-    return capacity;
+    return table.size(); // Return the size of the table vector
 }
+
 
 size_t HashTable::size() const {
     return size;

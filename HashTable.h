@@ -8,7 +8,7 @@
 namespace std {
  class HashTable {
  private:
-  size_t capacity;
+  size_t occupancy;
   size_t size;
   std::vector<HashTableBucket> table;
   std::vector<size_t> offsets; // pseudo-random probe sequence
