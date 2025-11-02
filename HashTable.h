@@ -20,6 +20,8 @@ namespace std {
  public:
   HashTable(size_t initCapacity = 8);
 
+  std::vector<::size_t> generateOffsets(size_t cap);
+
   bool insert(const std::string& key, const size_t& value);
   bool remove(const std::string& key);
   bool contains(const std::string& key) const;
