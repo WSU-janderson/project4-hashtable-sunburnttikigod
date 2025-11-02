@@ -1,12 +1,16 @@
-#ifndef HASHTABLEBUCKET_H
-#define HASHTABLEBUCKET_H
+#ifndef PROJECT4_HASHTABLE_HASHTABLEBUCKET_H
+#define PROJECT4_HASHTABLE_HASHTABLEBUCKET_H
 
 #include <string>
 #include <iostream>
 
-namespace  std{
+namespace std {
 
-    enum class BucketType { ESS, NORMAL, EAR };
+    enum class BucketType {
+        ESS,    // Empty Since Start
+        NORMAL, // Occupied
+        EAR     // Empty After Removal
+    };
 
     class HashTableBucket {
     private:
@@ -15,10 +19,12 @@ namespace  std{
         size_t value;
 
     public:
-        HashTableBucket(); // sets state to ESS
-        HashTableBucket(const std::string& key, const size_t& value); // sets state to NORMAL
+        HashTableBucket();
+        HashTableBucket(const std::string& key, const size_t& value);
 
-        void load(const std::string& key, const size_t& value); // sets state to NORMAL
+        void load(const std::string& key, const size_t& value);
+        void markRemoved();
+
         bool isEmpty() const;
         bool isEmptySinceStart() const;
         bool isEmptyAfterRemoval() const;
@@ -26,9 +32,11 @@ namespace  std{
 
         const std::string& getKey() const;
         size_t getValue() const;
-        void markRemoved(); // sets state to EAR
+        size_t& getValueRef();
 
         friend std::ostream& operator<<(std::ostream& os, const HashTableBucket& bucket);
     };
-#endif // HASHTABLEBUCKET_H
 
+}
+
+#endif // PROJECT4_HASHTABLE_HASHTABLEBUCKET_H
