@@ -44,7 +44,7 @@ size_t HashTable::probeIndex(size_t home, size_t attempt) const {
     return (home + offsets[attempt]) % capacity();
 }
 
-bool HashTable::insert(const std::string& key, const size_t& value) {
+    bool HashTable::insert(const std::string& key, const size_t& value) {
     srand(key.length());
 
     if (value == 9999) {
@@ -57,31 +57,40 @@ bool HashTable::insert(const std::string& key, const size_t& value) {
 
     double oldAlpha = alpha();
     size_t home = hash(key);
+    size_t first_ear_index = capacity(); // sentinel
 
-    size_t current_index = home;
+    // Check for duplicates
     for (size_t i = 0; i < capacity(); ++i) {
-        if (table[current_index].isNormal() && table[current_index].getKey() == key) {
+        size_t index = probeIndex(home, i);
+        if (table[index].isNormal() && table[index].getKey() == key) {
             return false;
         }
-        if (table[current_index].isEmptySinceStart()) {
+        if (table[index].isEmptySinceStart()) {
             break;
         }
-        current_index = probeIndex(home, i);
+        // continue probing through EAR
     }
 
-    current_index = home;
+    // Find slot to insert
     for (size_t i = 0; i < capacity(); ++i) {
-        if (table[current_index].isEmpty()) {
-            table[current_index].load(key, value);
+        size_t index = probeIndex(home, i);
+        if (table[index].isEmptyAfterRemoval() && first_ear_index == capacity()) {
+            first_ear_index = index;
+        }
+        if (table[index].isEmptySinceStart()) {
+            table[index].load(key, value);
             ++m_size;
-
-            double newAlpha = alpha();
-            if (newAlpha != oldAlpha) {
-                debugDumpToJSON();
-            }
+            if (alpha() != oldAlpha) debugDumpToJSON();
             return true;
         }
-        current_index = probeIndex(home, i);
+    }
+
+    // Reuse tombstone if no ESS found
+    if (first_ear_index != capacity()) {
+        table[first_ear_index].load(key, value);
+        ++m_size;
+        if (alpha() != oldAlpha) debugDumpToJSON();
+        return true;
     }
 
     return false;
@@ -102,7 +111,7 @@ void HashTable::resize() {
     }
 }
 
-bool HashTable::remove(const std::string& key) {
+    bool HashTable::remove(const std::string& key) {
     size_t home = hash(key);
     for (size_t i = 0; i < capacity(); ++i) {
         size_t index = probeIndex(home, i);
@@ -114,15 +123,18 @@ bool HashTable::remove(const std::string& key) {
         if (table[index].isEmptySinceStart()) {
             return false;
         }
+        // continue probing through EAR
     }
     return false;
 }
+
+
 
 bool HashTable::contains(const std::string& key) const {
     return get(key).has_value();
 }
 
-std::optional<size_t> HashTable::get(const std::string& key) const {
+    std::optional<size_t> HashTable::get(const std::string& key) const {
     size_t home = hash(key);
     for (size_t i = 0; i < capacity(); ++i) {
         size_t index = probeIndex(home, i);
@@ -132,40 +144,42 @@ std::optional<size_t> HashTable::get(const std::string& key) const {
         if (table[index].isEmptySinceStart()) {
             return std::nullopt;
         }
+        // continue probing through EAR
     }
     return std::nullopt;
 }
+    size_t& HashTable::operator[](const std::string& key) {
+        if (alpha() >= 0.5) {
+            resize();
+        }
 
-size_t& HashTable::operator[](const std::string& key) {
-    if (alpha() >= 0.5) {
+        size_t home = hash(key);
+        size_t first_empty_spot = capacity(); // sentinel
+
+        for (size_t i = 0; i < capacity(); ++i) {
+            size_t index = probeIndex(home, i);
+            if (table[index].isNormal() && table[index].getKey() == key) {
+                return table[index].getValueRef();
+            }
+            if (table[index].isEmpty() && first_empty_spot == capacity()) {
+                first_empty_spot = index;
+            }
+            if (table[index].isEmptySinceStart()) {
+                break;
+            }
+            // continue probing through EAR
+        }
+
+        if (first_empty_spot != capacity()) {
+            table[first_empty_spot].load(key, 0);
+            ++m_size;
+            return table[first_empty_spot].getValueRef();
+        }
+
         resize();
-    }
-
-    size_t home = hash(key);
-    size_t first_empty_spot = -1;
-
-    for (size_t i = 0; i < capacity(); ++i) {
-        size_t index = probeIndex(home, i);
-        if (table[index].isNormal() && table[index].getKey() == key) {
-            return table[index].getValueRef();
-        }
-        if (first_empty_spot == -1 && table[index].isEmpty()) {
-            first_empty_spot = index;
-        }
-        if (table[index].isEmptySinceStart()) {
-            break;
-        }
-    }
-
-    if (first_empty_spot != -1) {
-        table[first_empty_spot].load(key, 0);
-        m_size++;
-        return table[first_empty_spot].getValueRef();
-    }
-
-    resize();
-    return (*this)[key];
+        return (*this)[key];
 }
+
 
 std::vector<std::string> HashTable::keys() const {
     std::vector<std::string> result;
