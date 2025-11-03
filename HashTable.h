@@ -1,5 +1,5 @@
-#ifndef PROJECT4_HASHTABLE_SUNBURNTTIKIGOD_HASHTABLE_H
-#define PROJECT4_HASHTABLE_SUNBURNTTIKIGOD_HASHTABLE_H
+#ifndef PROJECT4_HASHTABLE_HASHTABLE_H
+#define PROJECT4_HASHTABLE_HASHTABLE_H
 #include <optional>
 #include <vector>
 
@@ -8,10 +8,9 @@
 namespace std {
  class HashTable {
  private:
-  size_t occupancy;
-  size_t size;
+  size_t m_size = 0;
   std::vector<HashTableBucket> table;
-  std::vector<size_t> offsets; // pseudo-random probe sequence
+  std::vector<size_t> offsets;
 
   size_t hash(const std::string& key) const;
   size_t probeIndex(size_t home, size_t attempt) const;
@@ -20,7 +19,7 @@ namespace std {
  public:
   HashTable(size_t initCapacity = 8);
 
-  std::vector<::size_t> generateOffsets(size_t cap);
+  static std::vector<::size_t> generateOffsets(size_t cap);
 
   bool insert(const std::string& key, const size_t& value);
   bool remove(const std::string& key);
@@ -29,13 +28,18 @@ namespace std {
   size_t& operator[](const std::string& key);
 
   vector<std::string> keys() const;
-  vector<size_t> makeOffsets();
   double alpha() const;
   size_t capacity() const;
+
   size_t size() const;
+
+  void rehashBackwards();
+
+  void debugDumpToJSON();
 
   friend std::ostream& operator<<(std::ostream& os, const HashTable& ht);
  };
 
 
 }
+#endif //PROJECT4_HASHTABLE_HASHTABLE_H

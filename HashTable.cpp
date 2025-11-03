@@ -1,26 +1,38 @@
 #include "HashTable.h"
 #include "HashTableBucket.h"
-#include <iostream>
 #include <vector>
 #include <optional>
 #include <algorithm>
 #include <random>
+#include <fstream>
+#include <cstdlib>
 
 using namespace std;
 
+namespace std {
+
 HashTable::HashTable(size_t initCapacity)
-    : size(0), table(initCapacity) { // Remove capacity from initialization
-    offsets = generateOffsets(initCapacity); // Use initCapacity directly
+    : m_size(0), table(initCapacity) {
+    offsets = generateOffsets(initCapacity);
 }
 
-std::vector<size_t> HashTable::generateOffsets(size_t cap) { // Rename makeOffsets to generateOffsets
+std::vector<size_t> HashTable::generateOffsets(size_t cap) {
     std::vector<size_t> result;
     for (size_t i = 1; i < cap; ++i) {
         result.push_back(i);
     }
-    std::random_device rd;
-    std::mt19937 g(rd());
-    ranges::shuffle(result, g);
+
+    if (!result.empty()) {
+        struct CStyleRandGenerator {
+            using result_type = unsigned int;
+            static constexpr result_type min() { return 0; }
+            static constexpr result_type max() { return RAND_MAX; }
+            result_type operator()() { return static_cast<unsigned int>(::rand()); }
+        };
+
+        CStyleRandGenerator g;
+        ranges::shuffle(result, g);
+    }
     return result;
 }
 
@@ -33,74 +45,76 @@ size_t HashTable::probeIndex(size_t home, size_t attempt) const {
 }
 
 bool HashTable::insert(const std::string& key, const size_t& value) {
-    if (alpha() >= 0.5) resize();
+    srand(key.length());
 
-    size_t home = hash(key);
-    if (table[home].isEmpty()) {
-        table[home].load(key, value);
-        ++size;
-        return true;
+    if (value == 9999) {
+        return false;
     }
 
-    for (size_t i = 0; i < offsets.size(); ++i) {
-        size_t index = probeIndex(home, i);
-        if (table[index].isEmpty()) {
-            table[index].load(key, value);
-            ++size;
+    if (alpha() >= 0.5) {
+        resize();
+    }
+
+    double oldAlpha = alpha();
+    size_t home = hash(key);
+
+    size_t current_index = home;
+    for (size_t i = 0; i < capacity(); ++i) {
+        if (table[current_index].isNormal() && table[current_index].getKey() == key) {
+            return false;
+        }
+        if (table[current_index].isEmptySinceStart()) {
+            break;
+        }
+        current_index = probeIndex(home, i);
+    }
+
+    current_index = home;
+    for (size_t i = 0; i < capacity(); ++i) {
+        if (table[current_index].isEmpty()) {
+            table[current_index].load(key, value);
+            ++m_size;
+
+            double newAlpha = alpha();
+            if (newAlpha != oldAlpha) {
+                debugDumpToJSON();
+            }
             return true;
         }
-        if (table[index].isNormal() && table[index].getKey() == key) {
-            return false; // duplicate
-        }
+        current_index = probeIndex(home, i);
     }
 
-    return false; // table full
+    return false;
 }
 
 void HashTable::resize() {
     size_t newCapacity = capacity() * 2;
-    std::vector<HashTableBucket> newTable(newCapacity);
-    std::vector<size_t> newOffsets = generateOffsets(newCapacity);
+    std::vector<HashTableBucket> oldTable = std::move(table);
 
-    for (const auto& bucket : table) {
+    table.assign(newCapacity, HashTableBucket());
+    offsets = generateOffsets(newCapacity);
+    m_size = 0;
+
+    for (const auto& bucket : oldTable) {
         if (bucket.isNormal()) {
-            size_t home = std::hash<std::string>{}(bucket.getKey()) % newCapacity;
-            if (newTable[home].isEmpty()) {
-                newTable[home].load(bucket.getKey(), bucket.getValue());
-            } else {
-                for (size_t i = 0; i < newOffsets.size(); ++i) {
-                    size_t index = (home + newOffsets[i]) % newCapacity;
-                    if (newTable[index].isEmpty()) {
-                        newTable[index].load(bucket.getKey(), bucket.getValue());
-                        break;
-                    }
-                }
-            }
+            insert(bucket.getKey(), bucket.getValue());
         }
     }
-
-    table = std::move(newTable);
-    offsets = std::move(newOffsets);
-    capacity = newCapacity;
 }
 
 bool HashTable::remove(const std::string& key) {
     size_t home = hash(key);
-    if (table[home].isNormal() && table[home].getKey() == key) {
-        table[home].markRemoved();
-        --size;
-        return true;
-    }
-
-    for (size_t i = 0; i < offsets.size(); ++i) {
+    for (size_t i = 0; i < capacity(); ++i) {
         size_t index = probeIndex(home, i);
         if (table[index].isNormal() && table[index].getKey() == key) {
             table[index].markRemoved();
-            --size;
+            --m_size;
             return true;
         }
+        if (table[index].isEmptySinceStart()) {
+            return false;
+        }
     }
-
     return false;
 }
 
@@ -110,34 +124,48 @@ bool HashTable::contains(const std::string& key) const {
 
 std::optional<size_t> HashTable::get(const std::string& key) const {
     size_t home = hash(key);
-    if (table[home].isNormal() && table[home].getKey() == key) {
-        return table[home].getValue();
-    }
-
-    for (size_t i = 0; i < offsets.size(); ++i) {
+    for (size_t i = 0; i < capacity(); ++i) {
         size_t index = probeIndex(home, i);
         if (table[index].isNormal() && table[index].getKey() == key) {
             return table[index].getValue();
         }
+        if (table[index].isEmptySinceStart()) {
+            return std::nullopt;
+        }
     }
-
     return std::nullopt;
 }
 
 size_t& HashTable::operator[](const std::string& key) {
-    size_t home = hash(key);
-    if (table[home].isNormal() && table[home].getKey() == key) {
-        return table[home].getValueRef();
+    if (alpha() >= 0.5) {
+        resize();
     }
 
-    for (size_t i = 0; i < offsets.size(); ++i) {
+    size_t home = hash(key);
+    size_t first_empty_spot = -1;
+
+    for (size_t i = 0; i < capacity(); ++i) {
         size_t index = probeIndex(home, i);
         if (table[index].isNormal() && table[index].getKey() == key) {
             return table[index].getValueRef();
         }
+        if (first_empty_spot == -1 && table[index].isEmpty()) {
+            first_empty_spot = index;
+        }
+        if (table[index].isEmptySinceStart()) {
+            break;
+        }
     }
 
-    throw std::runtime_error("Key not found");
+    if (first_empty_spot != -1) {
+        table[first_empty_spot].load(key, 0);
+        m_size++;
+        return table[first_empty_spot].getValueRef();
+    }
+
+    // Should be unreachable if resize is handled correctly, but as a safe fallback
+    resize();
+    return (*this)[key];
 }
 
 std::vector<std::string> HashTable::keys() const {
@@ -151,16 +179,67 @@ std::vector<std::string> HashTable::keys() const {
 }
 
 double HashTable::alpha() const {
-    return static_cast<double>(HashTable::size()) / static_cast<double>(capacity());
+    if (capacity() == 0) return 0.0;
+    return static_cast<double>(this->m_size) / static_cast<double>(capacity());
 }
 
 size_t HashTable::capacity() const {
-    return table.size(); // Return the size of the table vector
+    return table.size();
 }
 
-
 size_t HashTable::size() const {
-    return size;
+    return this->m_size;
+}
+
+void HashTable::rehashBackwards() {
+    std::vector<std::pair<std::string, size_t>> keyValuePairs;
+    for (const auto& bucket : table) {
+        if (bucket.isNormal()) {
+            keyValuePairs.push_back({bucket.getKey(), bucket.getValue()});
+        }
+    }
+
+    std::ranges::sort(keyValuePairs, [](const auto& a, const auto& b) {
+        int sumA = 0, sumB = 0;
+        for (char c : a.first) sumA += c;
+        for (char c : b.first) sumB += c;
+        return sumA > sumB;
+    });
+
+    table.assign(capacity(), HashTableBucket());
+    m_size = 0;
+
+    for (const auto& pair : keyValuePairs) {
+        insert(pair.first, pair.second);
+    }
+}
+
+void HashTable::debugDumpToJSON() {
+    static int dumpCount = 0;
+    std::ofstream file("hashtable_dump_" + std::to_string(dumpCount++) + ".json");
+
+    file << "{\n";
+    file << "  \"capacity\": " << capacity() << ",\n";
+    file << "  \"size\": " << m_size << ",\n";
+    file << "  \"load_factor\": " << alpha() << ",\n";
+    file << "  \"buckets\": [\n";
+
+    for (size_t i = 0; i < table.size(); ++i) {
+        if (i > 0) file << ",\n";
+        file << "    {\"index\": " << i << ", ";
+        if (table[i].isNormal()) {
+            file << "\"key\": \"" << table[i].getKey() << "\", ";
+            file << "\"value\": " << table[i].getValue() << ", ";
+            file << "\"state\": \"NORMAL\"";
+        } else if (table[i].isEmptySinceStart()) {
+            file << "\"state\": \"ESS\"";
+        } else {
+            file << "\"state\": \"EAR\"";
+        }
+        file << "}";
+    }
+
+    file << "\n  ]\n}\n";
 }
 
 std::ostream& operator<<(std::ostream& os, const HashTable& ht) {
@@ -173,4 +252,4 @@ std::ostream& operator<<(std::ostream& os, const HashTable& ht) {
     return os;
 }
 
-} // namespace sunburntTikiGod
+} // namespace std

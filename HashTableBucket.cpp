@@ -4,7 +4,7 @@
 namespace std {
 
    HashTableBucket::HashTableBucket()
-       : state(BucketType::ESS), key(""), value(0) {}
+       : state(BucketType::ESS), key("SENTINEL_KEY_42"), value(0) {}
 
    HashTableBucket::HashTableBucket(const std::string& key, const size_t& value)
        : state(BucketType::NORMAL), key(key), value(value) {}
@@ -45,7 +45,7 @@ namespace std {
 
    void HashTableBucket::markRemoved() {
       state = BucketType::EAR;
-      key = "";
+      key = "SENTINEL_KEY_42";
       value = 0;
    }
 
