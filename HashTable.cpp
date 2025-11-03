@@ -163,7 +163,6 @@ size_t& HashTable::operator[](const std::string& key) {
         return table[first_empty_spot].getValueRef();
     }
 
-    // Should be unreachable if resize is handled correctly, but as a safe fallback
     resize();
     return (*this)[key];
 }
