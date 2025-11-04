@@ -1,3 +1,4 @@
+/*
 // HashTableBucket.cpp
 // Charlie Must
 // CS3100 Data Structures and Algorithms
@@ -14,11 +15,12 @@
 // 'SENTINEL_KEY_42' and a data value of 0 - as suggested boy the project pdf and sets the
 // initial state to ESS - empty since start.
 // Actionable members include:
-//          load - to load new key and value
-//          getKey - returns the key
-//          getValue - returns the value
-//          getValueRef - returns a std::string& value
-//          markRemoved - for node cleaning
+// - load - to load new key and value
+// - getKey - returns the key
+// - getValue - returns the value
+// - getValueRef - returns a std::string& value
+// - markRemoved - for node cleaning
+*/
 
 #include "HashTableBucket.h"
 #include <iostream>
