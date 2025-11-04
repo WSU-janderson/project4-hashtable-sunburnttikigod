@@ -1,7 +1,5 @@
 /**
-* HashTableTests.cpp
- * CS 3100
- * Project 4
+ * HashTableTests.cpp
  *
  * Fully narrated test harness for the HashTable project.
  * - Uses make_key<key_type> and make_value<value_type> for all key/value generation

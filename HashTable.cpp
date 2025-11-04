@@ -1,3 +1,37 @@
+/* HashTable.cpp
+ * 
+ *  Charlie Must
+ *  CS3100 Data Structures and Algorithms
+ *  Dr. James Anderson
+ *  Fall 2025
+ *  project4-HashTable
+ * 
+ *  Using C++ std::vector to store, probe, and otherwise manipulate user input
+ *  data values and their associated keys in bucket objects.  This class, "HashTableBucket"
+ *  is responsible for representing a storage node for one key and one value of the
+ *  HashTable.  It holds a current stated which is used to check if it's full, empty,
+ *  or never put to use.  The class holds functions that return boolean values to check state.
+ *  The default constructor, initializes each bucket with a blank key value
+ *  'SENTINEL_KEY_42' and a data value of 0 - as suggested boy the project pdf and sets the
+ *  initial state to ESS - empty since start.
+ * -  Actionable members include:
+ *   - generateOffsets -> returns std::vector<size_t> for the hashing offsets
+ *   - hash -> maps key to index in table using std::hash returns a size_t result
+ *   - probeIndex -> returns a size_t
+ *   - insert -> returns a boolean upon successful or failure to insert
+ *   - resize -> void
+ *   - remove(const std::string& key) -> bool
+ *   - contains(const std::string& key) const -> bool
+ *   - get(const std::string& key) const -> returns a std::optional<size_t>
+ *   - operator[](const std::string& key) -> returns a reference value of the data        
+ *   - keys() const -> returns a std::vector<std::string>  of the keys
+ *   - alpha() const -> returns a ratio of occupants to total possible (a double) 
+ *   - capacity() const -> returns total possible occupants
+ *   - size() const -> returns occupancy count
+ *   - rehashBackwards() -> sorting and dumping to data file
+ *   - debugDumpToJSON() -> just dumps formated data to the JSON
+*/
+
 #include "HashTable.h"
 #include "HashTableBucket.h"
 #include <vector>
@@ -12,8 +46,8 @@ using namespace std;
 namespace std {
     // Constructor: initializes hash table with given capacity
     // Sets size to 0 and generates randomized probe offsets
-    HashTable::HashTable(size_t initCapacity)
-        : m_size(0), table(initCapacity) {
+    HashTable::HashTable(const size_t initCapacity)
+        : table(initCapacity) {
         offsets = generateOffsets(initCapacity);
     }
 
@@ -75,12 +109,12 @@ namespace std {
         for (size_t i = 0; i < capacity(); ++i) {
             size_t index = probeIndex(home, i);
 
-            // Duplicate key found — reject insert
+            // Duplicate key found - reject insert
             if (table[index].isNormal() && table[index].getKey() == key) {
                 return false;
             }
 
-            // Hit an ESS — key not present, stop probing
+            // Hit an ESS - key not present, stop probing
             if (table[index].isEmptySinceStart()) {
                 break;
             }
@@ -167,20 +201,20 @@ namespace std {
         for (size_t i = 0; i < capacity(); ++i) {
             size_t index = probeIndex(home, i);
 
-            // Case 1: Found a NORMAL bucket with matching key — return its value
+            // Case 1: Found a NORMAL bucket with matching key - return its value
             if (table[index].isNormal() && table[index].getKey() == key) {
                 return table[index].getValue();
             }
 
-            // Case 2: Hit an ESS (Empty Since Start) — key was never inserted, terminate search
+            // Case 2: Hit an ESS (Empty Since Start) - key was never inserted, terminate search
             if (table[index].isEmptySinceStart()) {
                 return std::nullopt;
             }
 
-            // Case 3: Hit an EAR (Empty After Removal) — continue probing
+            // Case 3: Hit an EAR (Empty After Removal) - continue probing
         }
 
-        // Exhausted all probe attempts without finding the key — return nullopt
+        // Exhausted all probe attempts without finding the key - return nullopt
         return std::nullopt;
     }
 
@@ -288,7 +322,7 @@ namespace std {
         }
     }
 
-    // Dump current table state to JSON for debugging and forensic inspection.
+    // Dump current table state to JSON to view both failures and successes
 
     void HashTable::debugDumpToJSON() {
         // Static counter to uniquely name each dump file (e.g., hashtable_dump_0.json, hashtable_dump_1.json, ...)

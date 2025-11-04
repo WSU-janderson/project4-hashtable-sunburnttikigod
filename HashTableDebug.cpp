@@ -1,8 +1,12 @@
-/**
- * HashTableDebug.cpp
+/** HashTableDebug.cpp
  *
- * Diagnostic test suite for HashTable
- */
+ *  Charlie Must
+ *  CS3100 Data Structures and Algorithms
+ *  Dr. James Anderson
+ *  Fall 2025
+ *  project4-HashTable
+ *                                              * CS 3100
+**/
 
 #include <iostream>
 #include <string>
