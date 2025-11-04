@@ -5,7 +5,7 @@
  *  Dr. James Anderson
  *  Fall 2025
  *  project4-HashTable
- *                                              * CS 3100
+ *
 **/
 
 #include <iostream>
